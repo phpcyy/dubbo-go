@@ -37,8 +37,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/jinzhu/copier"
-
 	perrors "github.com/pkg/errors"
 )
 
@@ -869,20 +867,36 @@ func (c *URL) MergeURL(anotherUrl *URL) *URL {
 
 // Clone will copy the URL
 func (c *URL) Clone() *URL {
-	newURL := &URL{}
-	if err := copier.Copy(newURL, c); err != nil {
-		// this is impossible
-		return newURL
+	newURL := &URL{
+		Protocol:     c.Protocol,
+		Location:     c.Location,
+		Ip:           c.Ip,
+		Port:         c.Port,
+		PrimitiveURL: c.PrimitiveURL,
+		Path:         c.Path,
+		Username:     c.Username,
+		Password:     c.Password,
+		Methods:      append([]string(nil), c.Methods...),
 	}
-	newURL.params = url.Values{}
-	c.RangeParams(func(key, value string) bool {
-		newURL.SetParam(key, value)
-		return true
-	})
-	c.RangeAttributes(func(key string, value any) bool {
-		newURL.SetAttribute(key, value)
-		return true
-	})
+
+	c.RangeParams(
+		func(key, value string) bool {
+			newURL.SetParam(key, value)
+			return true
+		},
+	)
+
+	c.RangeAttributes(
+		func(key string, value any) bool {
+			newURL.SetAttribute(key, value)
+			return true
+		},
+	)
+
+	if c.SubURL != nil {
+		newURL.SubURL = c.SubURL.Clone()
+	}
+
 	return newURL
 }
 
@@ -897,18 +911,39 @@ func (c *URL) RangeAttributes(f func(key string, value any) bool) {
 }
 
 func (c *URL) CloneExceptParams(excludeParams *gxset.HashSet) *URL {
-	newURL := &URL{}
-	if err := copier.Copy(newURL, c); err != nil {
-		// this is impossible
-		return newURL
+	newURL := &URL{
+		Protocol:     c.Protocol,
+		Location:     c.Location,
+		Ip:           c.Ip,
+		Port:         c.Port,
+		PrimitiveURL: c.PrimitiveURL,
+		Path:         c.Path,
+		Username:     c.Username,
+		Password:     c.Password,
+		Methods:      append([]string(nil), c.Methods...),
 	}
-	newURL.params = url.Values{}
-	c.RangeParams(func(key, value string) bool {
-		if !excludeParams.Contains(key) {
+
+	c.RangeParams(
+		func(key, value string) bool {
+			if excludeParams != nil && excludeParams.Contains(key) {
+				return true
+			}
 			newURL.SetParam(key, value)
-		}
-		return true
-	})
+			return true
+		},
+	)
+
+	c.RangeAttributes(
+		func(key string, value any) bool {
+			newURL.SetAttribute(key, value)
+			return true
+		},
+	)
+
+	if c.SubURL != nil {
+		newURL.SubURL = c.SubURL.Clone()
+	}
+
 	return newURL
 }
 
